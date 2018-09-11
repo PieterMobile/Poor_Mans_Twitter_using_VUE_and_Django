@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vue-js | Django | Not Rich Man's Twitter Messages</title>
+    <meta name=”viewport” content=”width=device-width, initial-scale=1.0">
+    <meta name=”description” content=”A poor man twitter app made with the vue js and django”>
+    <meta name=”keywords” content=”vuejs, django, crudapp, restapi”>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+</head>
+<body>
+    <div id="starting">
+      <div class="container">
+        <div class="row">
+            <h1>Poor Man's Twitter</h1>
+            <hr/>
+          <div>
+              <form v-on:submit.prevent="addMessage()">
+                <div class="message-body">
+
+                    <div class="form-group col-md-2">
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="message_heading"
+                        placeholder="Name"
+                        v-model="newMessage.message_name"
+                        required="required" >
+                    </div>
+                    <div class="form-group col-md-8">
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="message_content"
+                        placeholder="Tweet"
+                        maxlength="50"
+                        v-model="newMessage.message_content"
+                        required="required"
+                        rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="message-footer col-md-2" style="text-align: right">
+                  <button type="submit" class="btn btn-primary">Add Message</button>
+                </div>
+              </form>
+          </div>
+          <hr/>
+          <hr/>
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col" @click.prevent="sort('message_time')">Time</th>
+                <th scope="col">Content</th>
+                <th scope="col" @click.prevent="sort('message_name')">Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="message in sortedMessages">
+                <th scope="row">${message.message_id}</th>
+                <td>${message.message_time.replace('T',' ').replace('Z','') }</td>
+                <td>${message.message_content}</td>
+                <td>${message.message_name}</td>
+              </tr>
+            </tbody>
+          </table>
+
+        </div>
+      </div>
+      <div class="loading" v-if="loading===true">Loading&#8230;</div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <script src="https://unpkg.com/vue"></script>
+    <script src="https://unpkg.com/vue-resource"></script>
+    <script src="https://unpkg.com/lodash"></script>
+
+    <script>
+        Vue.http.headers.common['X-CSRFToken'] = "{{ csrf_token }}";
+        
+        new Vue({
+            el : '#starting',
+            delimiters: ['${','}'],
+            data: {
+                columns:['#', 'Time', 'Content', 'Name'],
+                messages: [],
+                loading: false,
+                currentMessage: {},
+                msg: null,
+                newMessage: { 'message_content': null, 'message_name': null },
+                currentSort: 'message_name',
+                currentSortDir: ['asc'],
+            },
+            created : function() {
+                this.getMessages();
+            },
+            computed:{
+                sortedMessages:function() {
+                  return this.messages.sort((a,b) => {
+                    let modifier = 1;
+                    if(this.currentSortDir === 'desc') modifier = -1;
+                    if(a[this.currentSort] < b[this.currentSort]) return -1 * modifier;
+                    if(a[this.currentSort] > b[this.currentSort]) return 1 * modifier;
+                    return 0;
+                  });
+                }
+            },
+            
+            methods : {
+                getMessages: function() {
+                    this.loading = true;
+                    this.$http.get('api/message/')
+                        .then((response) => {
+                            this.messages = response.data;
+                            this.loading  = false;
+                        })
+                        .catch((err) => {
+                            this.loading = false;
+                            console.log(err);
+                        })
+                },
+                sort: function(s) {
+                    if (s == this.currentSort) {
+                        this.currentSortDir = (this.currentSortDir == 'asc') ? 'desc' : 'asc';
+                    } 
+                    this.currentSort = s;
+                    
+                },
+                
+                addMessage: function() {
+                    this.loading = true;
+                    this.$http.post('/api/message/', this.newMessage)
+                        .then((response) => {
+                            this.loading = false;
+                            this.getMessages();
+                        })
+                        .catch((err) => {
+                            this.loading = false;
+                            console.log(err);
+                        })
+                }
+            }
+        });
+    </script>
+    <style type="text/css">
+        td, th {
+            padding: 5px;
+        }
+
+        th {
+            cursor:pointer;
+        }
+    </style>
+</body>
+</html>
